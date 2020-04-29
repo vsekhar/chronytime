@@ -106,10 +106,8 @@ func TestResponseParse(t *testing.T) {
 			RootDelay:          cfloat{F: -154422419},
 			RootDispersion:     cfloat{F: -254273351},
 			LastUpdateInterval: cfloat{F: 411118241},
-			//EOR:                0,
 		},
 	}
-	//reader := &zeroReader{r: bytes.NewReader(testVec)}
 	reader := bytes.NewReader(testVec)
 	rep := new(response)
 	if err := binary.Read(reader, networkOrder, rep); err != nil {
