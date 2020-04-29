@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"reflect"
 	"testing"
 	"time"
-
-	"gonum.org/v1/gonum/floats"
 )
 
 func TestClient(t *testing.T) {
@@ -27,7 +26,7 @@ func TestClient(t *testing.T) {
 type cfloatCase struct {
 	f    int32
 	want float64
-	ulp  uint
+	ulp  uint64
 }
 
 func TestCFloat(t *testing.T) {
@@ -44,10 +43,19 @@ func TestCFloat(t *testing.T) {
 	}
 	for _, c := range cases {
 		cf := cfloat{F: c.f}
-		if !floats.EqualWithinULP(c.want, cf.value(), c.ulp) {
-			t.Errorf("Want: %f, got %f", c.want, cf.value())
+		if !equalULP(cf.value(), c.want, c.ulp) {
+			t.Errorf("want: %f, got %f", c.want, cf.value())
 		}
 	}
+}
+
+func equalULP(a, b float64, ulp uint64) bool {
+	steps := (b - a) / (math.Nextafter(a, b) - a)
+	usteps := uint64(math.Trunc(steps))
+	if usteps <= ulp {
+		return true
+	}
+	return false
 }
 
 func TestResponseParse(t *testing.T) {
