@@ -7,10 +7,10 @@ package chronytime
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"time"
 	"unsafe"
@@ -103,7 +103,7 @@ type request struct {
 	res2     uint8
 	command  uint16
 	attempt  uint16
-	sequence [4]byte
+	sequence uint32
 	pad1     [8]byte
 
 	// union of request structs, largest of which is REQ_NTP_Source (93 bytes)
@@ -222,12 +222,12 @@ func (c *Client) waitSync() error {
 
 func (c *Client) trackingRequest() (*response, error) {
 	r := request{
-		version: 6,
-		pktType: pktTypeCmdRequest,
-		command: cmdTracking,
-		attempt: 0,
+		version:  6,
+		pktType:  pktTypeCmdRequest,
+		command:  cmdTracking,
+		attempt:  0,
+		sequence: rand.Uint32(),
 	}
-	rand.Read(r.sequence[:])
 	if err := binary.Write(c.conn, networkOrder, r); err != nil {
 		return nil, err
 	}
@@ -251,6 +251,10 @@ func (c *Client) trackingRequest() (*response, error) {
 	if err := binary.Read(reader, networkOrder, rep); err != nil {
 		return nil, err
 	}
+	if rep.Sequence != r.sequence {
+		return nil, fmt.Errorf("expected sequence %d, got %d", r.sequence, rep.Sequence)
+	}
+
 	return rep, nil
 }
 
