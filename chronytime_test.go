@@ -3,6 +3,7 @@ package chronytime
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -14,6 +15,10 @@ func TestClient(t *testing.T) {
 	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
+	}
+	ts := time.Now()
+	if err := c.WaitUntilAfter(ts); err != nil {
+		t.Error(err)
 	}
 	defer c.Close()
 }
@@ -113,5 +118,45 @@ func TestResponseParse(t *testing.T) {
 	wantrts := "Tue Apr 28 23:01:19 2020"
 	if rt != wantrts {
 		t.Errorf("Wanted: %s, got %s", wantrts, rt)
+	}
+}
+
+func TestConsistenOperation(t *testing.T) {
+	c, err := NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var errAbort = fmt.Errorf("abort")
+	pSuccess := func() error { return nil }
+	pFail := func() error { return errAbort }
+	var cts time.Time
+	cfSuccess := func(t time.Time) error { cts = t; return nil }
+	cfFail := func(t time.Time) error { return errAbort }
+
+	cots, err := c.ConsistentOperation(pSuccess, cfSuccess)
+	if err != nil {
+		t.Error(err)
+	}
+	if cots != cts {
+		t.Errorf("mismatched timestamps: %s and %s", cots, cts)
+	}
+
+	cots, err = c.ConsistentOperation(pFail, cfSuccess)
+	if err != errAbort {
+		t.Errorf("expected errAbort, got %v", err)
+	}
+	if !cots.Equal(time.Time{}) {
+		t.Errorf("expected time.Time zero value, got %v", cots)
+	}
+	if cts.Equal(time.Time{}) {
+		t.Errorf("cf executed when it shouldn't have been")
+	}
+
+	cots, err = c.ConsistentOperation(pSuccess, cfFail)
+	if err != errAbort {
+		t.Errorf("expected errAbort, got %v", err)
+	}
+	if !cots.Equal(time.Time{}) {
+		t.Errorf("expected time.Time zero value, got %v", cots)
 	}
 }
