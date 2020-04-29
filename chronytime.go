@@ -133,7 +133,10 @@ type trackingResponse struct {
 	RootDelay          cfloat
 	RootDispersion     cfloat
 	LastUpdateInterval cfloat
-	EOR                int32
+
+	// Present in the C structs, but only used by offsetof operator
+	// to determine number of bytes to send. It is not itself transmitted.
+	// EOR int32
 }
 
 func uncertainty(r trackingResponse) time.Duration {
@@ -221,9 +224,9 @@ func (c *Client) waitSync() error {
 			continue
 		}
 		// bad packet or parse
-		if r.Tracking.EOR != 0 {
+		/*if r.Tracking.EOR != 0 {
 			continue
-		}
+		}*/
 		break
 	}
 	return nil

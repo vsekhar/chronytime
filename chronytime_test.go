@@ -68,10 +68,6 @@ func TestResponseParse(t *testing.T) {
 		Leap status     : Normal
 	*/
 	testVec := []byte("\x06\x02\x00\x00\x00\x21\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\xa2\x15\x69\x52\x00\x00\x00\x00\x00\x00\x00\x00\xce\x6c\x00\x84\xce\x6c\x00\x84\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x5e\xa8\xb5\xbf\x1c\x98\xf9\xc4\xec\xea\xed\x48\xeb\x25\x2c\x3a\xea\xc0\xec\x61\x0a\xe7\xae\x64\xf3\x41\xa2\x0b\xfa\xc9\xcc\xf3\xf6\xcb\xb3\x6d\xf0\xd8\x18\xb9\x18\x81\x2a\xa1")
-	// the C code silently ignores fields at the end, but binary.Read is too smart for that
-	// so add enough padding to prevent an "unexpected EOF" error
-	padding := 4
-	testVec = append(testVec, make([]byte, padding)...)
 	testRep := response{
 		Version:  6,
 		PktType:  pktTypeCmdReply,
@@ -101,7 +97,7 @@ func TestResponseParse(t *testing.T) {
 			RootDelay:          cfloat{F: -154422419},
 			RootDispersion:     cfloat{F: -254273351},
 			LastUpdateInterval: cfloat{F: 411118241},
-			EOR:                0,
+			//EOR:                0,
 		},
 	}
 	//reader := &zeroReader{r: bytes.NewReader(testVec)}
