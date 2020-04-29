@@ -16,11 +16,12 @@ func TestClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Close()
+
 	ts := time.Now()
 	if err := c.WaitUntilAfter(ts); err != nil {
 		t.Error(err)
 	}
-	defer c.Close()
 }
 
 type cfloatCase struct {

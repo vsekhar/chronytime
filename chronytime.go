@@ -16,32 +16,27 @@ import (
 	"unsafe"
 )
 
+var networkOrder = binary.BigEndian
+
+// #defines from chrony/candm.c
+const (
 // UNIX domain socket might be available if we are running as chrony user or
 // root, but regular users will connect via UDP
 // const defaultCommandSocket = "/var/run/chrony/chronyd.sock"
-const defaultCandMPort = 323
-
-var networkOrder = binary.BigEndian
+	defaultCandMPort = 323
 
 // Packet types (request.pktType and response.PktType)
-const (
 	pktTypeCmdRequest = 1
 	pktTypeCmdReply   = 2
-)
 
 // Commands (request.command and response.Command)
-const (
 	cmdTracking = 33 // also used for waitSync
-)
 
 // Replies (response.Reply)
-const (
 	rpyNull     = 1
 	rpyTracking = 5
-)
 
 // Statuses
-const (
 	sttSuccess = 0
 )
 
@@ -211,22 +206,15 @@ func (c *Client) waitSync() error {
 		if err != nil {
 			return err
 		}
-		// no sync
 		if r.Tracking.Addr.Family == ipAddrFamilyUnspec {
 			continue
 		}
-		// local sync
 		if r.Tracking.RefID == 0 || r.Tracking.RefID == 0x7f7f0101 /* LOCAL refid */ {
 			continue
 		}
-		// too much uncertainty
 		if uncertainty(r.Tracking) > (20 * time.Millisecond) {
 			continue
 		}
-		// bad packet or parse
-		/*if r.Tracking.EOR != 0 {
-			continue
-		}*/
 		break
 	}
 	return nil
@@ -244,22 +232,22 @@ func (c *Client) trackingRequest() (*response, error) {
 		return nil, err
 	}
 	buffer := make([]byte, 1024)
-	for {
+	rep := new(response)
 		c.conn.SetDeadline(time.Now().Add(1 * time.Second))
 		n, addr, err := c.conn.ReadFromUDP(buffer)
 		if n == 0 {
 			return nil, fmt.Errorf("empty read")
 		}
+
+	// TODO: handle partial reads in a loop
+
 		if !sameUDPAddr(*addr, *c.addr) {
-			continue
+		return nil, fmt.Errorf("expected %+v, got %+v", *c.addr, *addr)
 		}
 		if err != nil {
 			return nil, err
 		}
-		break
-	}
 	reader := bytes.NewReader(buffer)
-	rep := new(response)
 	if err := binary.Read(reader, networkOrder, rep); err != nil {
 		return nil, err
 	}
