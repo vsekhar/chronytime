@@ -286,3 +286,37 @@ func (c *Client) WaitUntilAfter(t time.Time) error {
 	}
 	return nil
 }
+
+// PrepareFunc is a function (usually a closure) that prepares a task to be consistently
+// ordered. If PrepareFunc returns a non-nil error, the task is cancelled.
+type PrepareFunc func() error
+
+// CommitFunc is a function (usually a closure) that commits a task as though it occurred
+// at the provided timestamp.
+type CommitFunc func(time.Time) error
+
+// ConsistentOperation executes an exteranlly consistent operation in two parts.
+//
+// First, pf is called. Typically, pf will acquire resources (files, locks) to ensure the
+// completion of the operation. If pf returns a non-nil error, ConsistentOperation does
+// not call cf and returns the error.
+//
+// If pf returns nil, ConsistentOperation obtains a timestamp and passes it to cf. Typically,
+// cf will commit the operation to databases or files using the provided timestamp. If cf
+// returns a non-nill error, ConsistentOperation returns that error. If cf returns nil,
+// ConsistentOperation will wait out the uncertainty in the timestamp and then return
+// the timestamp.
+//
+// To ensure consistency, success should not be reported to any external clients until after
+// ConsistentOperation has returned.
+func (c *Client) ConsistentOperation(pf PrepareFunc, cf CommitFunc) (time.Time, error) {
+	if err := pf(); err != nil {
+		return time.Time{}, err
+	}
+	t := time.Now()
+	if err := cf(t); err != nil {
+		return time.Time{}, err
+	}
+	c.WaitUntilAfter(t)
+	return t, nil
+}
