@@ -20,23 +20,23 @@ var networkOrder = binary.BigEndian
 
 // #defines from chrony/candm.c
 const (
-// UNIX domain socket might be available if we are running as chrony user or
-// root, but regular users will connect via UDP
-// const defaultCommandSocket = "/var/run/chrony/chronyd.sock"
+	// UNIX domain socket might be available if we are running as chrony user or
+	// root, but regular users will connect via UDP
+	// const defaultCommandSocket = "/var/run/chrony/chronyd.sock"
 	defaultCandMPort = 323
 
-// Packet types (request.pktType and response.PktType)
+	// Packet types (request.pktType and response.PktType)
 	pktTypeCmdRequest = 1
 	pktTypeCmdReply   = 2
 
-// Commands (request.command and response.Command)
+	// Commands (request.command and response.Command)
 	cmdTracking = 33 // also used for waitSync
 
-// Replies (response.Reply)
+	// Replies (response.Reply)
 	rpyNull     = 1
 	rpyTracking = 5
 
-// Statuses
+	// Statuses
 	sttSuccess = 0
 )
 
@@ -233,20 +233,20 @@ func (c *Client) trackingRequest() (*response, error) {
 	}
 	buffer := make([]byte, 1024)
 	rep := new(response)
-		c.conn.SetDeadline(time.Now().Add(1 * time.Second))
-		n, addr, err := c.conn.ReadFromUDP(buffer)
-		if n == 0 {
-			return nil, fmt.Errorf("empty read")
-		}
+	c.conn.SetDeadline(time.Now().Add(1 * time.Second))
+	n, addr, err := c.conn.ReadFromUDP(buffer)
+	if n == 0 {
+		return nil, fmt.Errorf("empty read")
+	}
 
 	// TODO: handle partial reads in a loop
 
-		if !sameUDPAddr(*addr, *c.addr) {
+	if !sameUDPAddr(*addr, *c.addr) {
 		return nil, fmt.Errorf("expected %+v, got %+v", *c.addr, *addr)
-		}
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
+	}
 	reader := bytes.NewReader(buffer)
 	if err := binary.Read(reader, networkOrder, rep); err != nil {
 		return nil, err
@@ -310,9 +310,14 @@ func (c *Client) ConsistentOperation(pf PrepareFunc, cf CommitFunc) (time.Time, 
 		return time.Time{}, err
 	}
 	t := time.Now()
+	var finished = make(chan struct{})
+	go func() {
+		c.WaitUntilAfter(t)
+		close(finished)
+	}()
 	if err := cf(t); err != nil {
 		return time.Time{}, err
 	}
-	c.WaitUntilAfter(t)
+	<-finished
 	return t, nil
 }
