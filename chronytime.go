@@ -299,13 +299,14 @@ type CommitFunc func(time.Time) error
 //
 // First, pf is called. Typically, pf will acquire resources (files, locks) to ensure the
 // completion of the operation. If pf returns a non-nil error, ConsistentOperation does
-// not call cf and returns the error.
+// not call cf and returns the error. Any required cleanup should be completed before pf
+// returns.
 //
 // If pf returns nil, ConsistentOperation obtains a timestamp and passes it to cf. Typically,
 // cf will commit the operation to databases or files using the provided timestamp. If cf
-// returns a non-nill error, ConsistentOperation returns that error. If cf returns nil,
-// ConsistentOperation will wait out the uncertainty in the timestamp and then return
-// the timestamp.
+// returns a non-nill error, ConsistentOperation returns that error. Any required cleanup
+// should be completed before cf returns. If cf returns nil, ConsistentOperation will wait
+// out the uncertainty in the timestamp and then return the timestamp.
 //
 // To ensure consistency, success should not be reported to any external clients until after
 // ConsistentOperation has returned.
