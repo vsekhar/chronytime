@@ -1,3 +1,8 @@
+// Package chronytime uses the Chrony time daemon to emulate TrueTime behavior.
+//
+// Chrony is an NTP-like time daemon that synchronizes the system clock to several
+// time servers. Chrony maintains estimates of clock error which package chronytime
+// uses to provide consistent time stamps.
 package chronytime
 
 import (
