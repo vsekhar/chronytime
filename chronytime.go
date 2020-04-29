@@ -72,11 +72,7 @@ type cfloat struct {
 
 const (
 	cfloatExpBits  = 7
-	cfloatExpMin   = (-(1 << (cfloatExpBits - 1)))
-	cfloatExpMax   = (-cfloatExpMin - 1)
 	cfloatCoefBits = (unsafe.Sizeof(int32(0))*8 - cfloatExpBits)
-	cfloatCoefMin  = (-(1 << (cfloatCoefBits - 1)))
-	cfloatCoefMax  = (-cfloatCoefMin - 1)
 )
 
 func (f *cfloat) value() float64 {
