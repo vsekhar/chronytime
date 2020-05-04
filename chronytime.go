@@ -288,21 +288,21 @@ type CommitFunc func(time.Time) error
 
 // ConsistentOperation executes an exteranlly consistent operation in two parts.
 //
-// First, pf is called. Typically, pf will acquire resources (files, locks) to ensure the
-// completion of the operation. If pf returns a non-nil error, ConsistentOperation does
-// not call cf and returns the error. Any required cleanup should be completed before pf
+// First, prepare is called. Typically, prepare will acquire resources (files, locks) to ensure the
+// completion of the operation. If prepare returns a non-nil error, ConsistentOperation does
+// not call commit and returns the error. Any required cleanup should be completed before prepare
 // returns.
 //
-// If pf returns nil, ConsistentOperation obtains a timestamp and passes it to cf. Typically,
-// cf will commit the operation to databases or files using the provided timestamp. If cf
+// If prepare returns nil, ConsistentOperation obtains a timestamp and passes it to commit. Typically,
+// commit will commit the operation to databases or files using the provided timestamp. If commit
 // returns a non-nill error, ConsistentOperation returns that error. Any required cleanup
-// should be completed before cf returns. If cf returns nil, ConsistentOperation will wait
+// should be completed before commit returns. If commit returns nil, ConsistentOperation will wait
 // out the uncertainty in the timestamp and then return the timestamp.
 //
 // To ensure consistency, success should not be reported to any external clients until after
 // ConsistentOperation has returned.
-func (c *Client) ConsistentOperation(pf PrepareFunc, cf CommitFunc) (time.Time, error) {
-	if err := pf(); err != nil {
+func (c *Client) ConsistentOperation(prepare PrepareFunc, commit CommitFunc) (time.Time, error) {
+	if err := prepare(); err != nil {
 		return time.Time{}, err
 	}
 	t := time.Now()
@@ -311,7 +311,7 @@ func (c *Client) ConsistentOperation(pf PrepareFunc, cf CommitFunc) (time.Time, 
 		c.WaitUntilAfter(t)
 		close(finished)
 	}()
-	if err := cf(t); err != nil {
+	if err := commit(t); err != nil {
 		return time.Time{}, err
 	}
 	<-finished
