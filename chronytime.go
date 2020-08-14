@@ -7,6 +7,7 @@ package chronytime
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -261,7 +262,7 @@ func (c *Client) Close() error {
 
 // WaitUntilAfter blocks until chronytime is sure the current time is after t.
 // If an error occurs while waiting, the operation is aborted and the error is returned.
-func (c *Client) WaitUntilAfter(t time.Time) error {
+func (c *Client) WaitUntilAfter(ctx context.Context, t time.Time) error {
 	for {
 		r, err := c.trackingRequest()
 		if err != nil {
@@ -273,18 +274,22 @@ func (c *Client) WaitUntilAfter(t time.Time) error {
 		if earliest.After(t) {
 			break
 		}
-		time.Sleep(t.Sub(earliest))
+		select {
+		case <-time.After(t.Sub(earliest)):
+		case <-ctx.Done():
+			return context.Canceled
+		}
 	}
 	return nil
 }
 
 // PrepareFunc is a function (usually a closure) that prepares a task to be consistently
 // ordered. If PrepareFunc returns a non-nil error, the task is cancelled.
-type PrepareFunc func() error
+type PrepareFunc func(context.Context) error
 
 // CommitFunc is a function (usually a closure) that commits a task as though it occurred
 // at the provided timestamp.
-type CommitFunc func(time.Time) error
+type CommitFunc func(context.Context, time.Time) error
 
 // ConsistentOperation executes an exteranlly consistent operation in two parts.
 //
@@ -301,17 +306,17 @@ type CommitFunc func(time.Time) error
 //
 // To ensure consistency, success should not be reported to any external clients until after
 // ConsistentOperation has returned.
-func (c *Client) ConsistentOperation(prepare PrepareFunc, commit CommitFunc) (time.Time, error) {
-	if err := prepare(); err != nil {
+func (c *Client) ConsistentOperation(ctx context.Context, prepare PrepareFunc, commit CommitFunc) (time.Time, error) {
+	if err := prepare(ctx); err != nil {
 		return time.Time{}, err
 	}
 	t := time.Now()
 	var finished = make(chan struct{})
 	go func() {
-		c.WaitUntilAfter(t)
+		c.WaitUntilAfter(ctx, t)
 		close(finished)
 	}()
-	if err := commit(t); err != nil {
+	if err := commit(ctx, t); err != nil {
 		return time.Time{}, err
 	}
 	<-finished

@@ -2,6 +2,7 @@ package chronytime
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -18,7 +19,7 @@ func TestClient(t *testing.T) {
 	defer c.Close()
 
 	ts := time.Now()
-	if err := c.WaitUntilAfter(ts); err != nil {
+	if err := c.WaitUntilAfter(context.Background(), ts); err != nil {
 		t.Error(err)
 	}
 }
@@ -130,13 +131,13 @@ func TestConsistenOperation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var errAbort = fmt.Errorf("abort")
-	pSuccess := func() error { return nil }
-	pFail := func() error { return errAbort }
+	pSuccess := func(_ context.Context) error { return nil }
+	pFail := func(_ context.Context) error { return errAbort }
 	var cts time.Time
-	cfSuccess := func(t time.Time) error { cts = t; return nil }
-	cfFail := func(t time.Time) error { return errAbort }
+	cfSuccess := func(_ context.Context, t time.Time) error { cts = t; return nil }
+	cfFail := func(_ context.Context, t time.Time) error { return errAbort }
 
-	cots, err := c.ConsistentOperation(pSuccess, cfSuccess)
+	cots, err := c.ConsistentOperation(context.Background(), pSuccess, cfSuccess)
 	if err != nil {
 		t.Error(err)
 	}
@@ -144,7 +145,7 @@ func TestConsistenOperation(t *testing.T) {
 		t.Errorf("mismatched timestamps: %s and %s", cots, cts)
 	}
 
-	cots, err = c.ConsistentOperation(pFail, cfSuccess)
+	cots, err = c.ConsistentOperation(context.Background(), pFail, cfSuccess)
 	if err != errAbort {
 		t.Errorf("expected errAbort, got %v", err)
 	}
@@ -155,7 +156,7 @@ func TestConsistenOperation(t *testing.T) {
 		t.Errorf("cf executed when it shouldn't have been")
 	}
 
-	cots, err = c.ConsistentOperation(pSuccess, cfFail)
+	cots, err = c.ConsistentOperation(context.Background(), pSuccess, cfFail)
 	if err != errAbort {
 		t.Errorf("expected errAbort, got %v", err)
 	}
