@@ -17,9 +17,13 @@ func TestClient(t *testing.T) {
 	}
 	defer c.Close()
 
-	ts := time.Now()
-	if err := c.WaitUntilAfter(context.Background(), ts); err != nil {
-		t.Error(err)
+	r, err := c.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if r.Now.Sub(now) > 100*time.Millisecond {
+		t.Errorf("timestamps differ: %s, %s", now, r.Now)
 	}
 }
 
@@ -164,6 +168,39 @@ func TestResponse(t *testing.T) {
 	}
 	if d > 0 {
 		t.Errorf("expected %s, got %s, diff %s", ee, earliest, d)
+	}
+}
+
+func TestWaitUntilAfter(t *testing.T) {
+	c, err := NewClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Success
+	r, err := c.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := r.Now.Add(10 * time.Nanosecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	err = c.WaitUntilAfter(ctx, target)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Force timeout
+	r, err = c.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	target = r.Now.Add(100 * time.Millisecond)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Nanosecond)
+	defer cancel()
+	err = c.WaitUntilAfter(ctx, target)
+	if err != context.Canceled {
+		t.Errorf("expected context cancellation error, got %s", err)
 	}
 }
 

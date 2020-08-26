@@ -269,18 +269,15 @@ func (c *Client) Close() error {
 // time.Now() and t as this does not respect uncertainty semantics.
 func (c *Client) WaitUntilAfter(ctx context.Context, t time.Time) error {
 	for {
-		r, err := c.trackingRequest()
+		r, err := c.Get()
 		if err != nil {
 			return err
 		}
-		now := time.Now()
-		eps := uncertainty(r.Tracking)
-		earliest := now.Add(-eps)
-		if earliest.After(t) {
+		if r.Earliest().After(t) {
 			break
 		}
 		select {
-		case <-time.After(t.Sub(earliest)):
+		case <-time.After(t.Sub(r.Earliest())):
 		case <-ctx.Done():
 			return context.Canceled
 		}
