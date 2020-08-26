@@ -139,22 +139,31 @@ func TestResponseParse(t *testing.T) {
 	}
 }
 
-func TestEarliest(t *testing.T) {
+func TestResponse(t *testing.T) {
 	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, now, corr, u, err := c.fetch()
+	r, err := c.Get()
 	if err != nil {
 		t.Fatal(err)
 	}
-	et := now.Add(corr).Add(-u)
-	d := et.Sub(e)
+	et := r.uncorrectedNow.Add(r.correction)
+	d := et.Sub(r.Now)
 	if d < 0 {
 		d = -d
 	}
 	if d > 0 {
-		t.Errorf("expected %s, got %s, diff %s", e, et, d)
+		t.Errorf("expected %s, got %s, diff %s", et, r.Now, d)
+	}
+	earliest := r.Earliest()
+	ee := et.Add(-r.Uncertainty)
+	d = ee.Sub(earliest)
+	if d < 0 {
+		d = -d
+	}
+	if d > 0 {
+		t.Errorf("expected %s, got %s, diff %s", ee, earliest, d)
 	}
 }
 
@@ -165,7 +174,7 @@ func BenchmarkFetch(b *testing.B) {
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, _, _, _, err := c.fetch(); err != nil {
+		if _, err := c.Get(); err != nil {
 			b.Fatal(err)
 		}
 	}

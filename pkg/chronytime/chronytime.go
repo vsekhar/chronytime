@@ -188,28 +188,36 @@ func sameUDPAddr(a1, a2 net.UDPAddr) bool {
 	return false
 }
 
-// Uncertainty returns the current time uncertainty, or an error.
-func (c *Client) Uncertainty() (time.Duration, error) {
-	_, _, _, u, err := c.fetch()
-	return u, err
+// Response is a struct containing the current time and the associated uncertainty.
+type Response struct {
+	Now         time.Time
+	Uncertainty time.Duration
+
+	// For testing
+	uncorrectedNow time.Time
+	correction     time.Duration
 }
 
-// Earliest returns the earliest possible time, or an error.
-func (c *Client) Earliest() (time.Time, error) {
-	e, _, _, _, err := c.fetch()
-	return e, err
-}
-
-func (c *Client) fetch() (earliest, now time.Time, correction, unc time.Duration, err error) {
+// Get returns a Response or an error.
+func (c *Client) Get() (Response, error) {
 	r, err := c.trackingRequest()
 	if err != nil {
-		return time.Time{}, time.Time{}, 0, 0, err
+		return Response{}, err
 	}
-	unc = uncertainty(r.Tracking)
-	correction = time.Duration(r.Tracking.CurrentCorrection.value() * math.Pow(10, 9))
-	now = time.Now()
-	earliest = now.Add(correction).Add(-unc)
-	return
+	correction := time.Duration(r.Tracking.CurrentCorrection.value() * math.Pow(10, 9))
+	now := time.Now()
+	return Response{
+		Now:            now.Add(correction),
+		Uncertainty:    uncertainty(r.Tracking),
+		uncorrectedNow: now,
+		correction:     correction,
+	}, nil
+}
+
+// Earliest returns the earliest time at which the Response could have been
+// obtained.
+func (r *Response) Earliest() time.Time {
+	return r.Now.Add(-r.Uncertainty)
 }
 
 func (c *Client) trackingRequest() (*response, error) {
