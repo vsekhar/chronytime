@@ -187,7 +187,8 @@ func sameUDPAddr(a1, a2 net.UDPAddr) bool {
 	return false
 }
 
-// Response is a struct containing the current time and the associated uncertainty.
+// Response is a struct containing a time reading consisting of a timestamp and
+// the associated uncertainty.
 type Response struct {
 	Now         time.Time
 	Uncertainty time.Duration
