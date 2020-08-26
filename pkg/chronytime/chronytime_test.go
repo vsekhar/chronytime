@@ -172,3 +172,16 @@ func TestConsistenOperation(t *testing.T) {
 		t.Errorf("expected time.Time zero value, got %v", cots)
 	}
 }
+
+func BenchmarkUncertainty(b *testing.B) {
+	c, err := NewClient()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := c.Uncertainty(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
