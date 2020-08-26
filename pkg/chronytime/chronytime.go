@@ -14,7 +14,6 @@ import (
 	"math/rand"
 	"net"
 	"time"
-	"unsafe"
 )
 
 var networkOrder = binary.BigEndian
@@ -73,7 +72,7 @@ type cfloat struct {
 
 const (
 	cfloatExpBits  = 7
-	cfloatCoefBits = (unsafe.Sizeof(int32(0))*8 - cfloatExpBits)
+	cfloatCoefBits = ( /*unsafe.Sizeof(int32(0))*/ 4*8 - cfloatExpBits)
 )
 
 func (f *cfloat) value() float64 {
