@@ -132,6 +132,7 @@ type trackingResponse struct {
 
 func uncertainty(r trackingResponse) time.Duration {
 	// https://chrony.tuxfamily.org/doc/3.5/chronyc.html
+	// TODO: find forum post from Chrony author describing this formula.
 	correction := r.CurrentCorrection.value()
 	rootDelay := r.RootDelay.value()
 	rootDispersion := r.RootDispersion.value()

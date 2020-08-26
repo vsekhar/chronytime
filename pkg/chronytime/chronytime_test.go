@@ -113,6 +113,7 @@ var testRep = response{
 }
 
 func TestUncertainty(t *testing.T) {
+	// correction + rootDispersion + (0.5 * rootDelay)
 	x := 8313231 * time.Nanosecond
 	if u := uncertainty(testRep.Tracking); u != x {
 		t.Errorf("expected uncertainty %s, got %s", x.String(), u.String())
