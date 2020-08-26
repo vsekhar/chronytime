@@ -190,11 +190,26 @@ func sameUDPAddr(a1, a2 net.UDPAddr) bool {
 
 // Uncertainty returns the current time uncertainty, or an error.
 func (c *Client) Uncertainty() (time.Duration, error) {
+	_, _, _, u, err := c.fetch()
+	return u, err
+}
+
+// Earliest returns the earliest possible time, or an error.
+func (c *Client) Earliest() (time.Time, error) {
+	e, _, _, _, err := c.fetch()
+	return e, err
+}
+
+func (c *Client) fetch() (earliest, now time.Time, correction, unc time.Duration, err error) {
 	r, err := c.trackingRequest()
 	if err != nil {
-		return 0, err
+		return time.Time{}, time.Time{}, 0, 0, err
 	}
-	return uncertainty(r.Tracking), nil
+	unc = uncertainty(r.Tracking)
+	correction = time.Duration(r.Tracking.CurrentCorrection.value() * math.Pow(10, 9))
+	now = time.Now()
+	earliest = now.Add(correction).Add(-unc)
+	return
 }
 
 func (c *Client) trackingRequest() (*response, error) {
@@ -242,6 +257,9 @@ func (c *Client) Close() error {
 
 // WaitUntilAfter blocks until chronytime is sure the current time is after t.
 // If an error occurs while waiting, the operation is aborted and the error is returned.
+//
+// Use context.WithTimeout to limit how long to wait. Do not try to do math using
+// time.Now() and t as this does not respect uncertainty semantics.
 func (c *Client) WaitUntilAfter(ctx context.Context, t time.Time) error {
 	for {
 		r, err := c.trackingRequest()
@@ -261,44 +279,4 @@ func (c *Client) WaitUntilAfter(ctx context.Context, t time.Time) error {
 		}
 	}
 	return nil
-}
-
-// PrepareFunc is a function (usually a closure) that prepares a task to be consistently
-// ordered. If PrepareFunc returns a non-nil error, the task is cancelled.
-type PrepareFunc func(context.Context) error
-
-// CommitFunc is a function (usually a closure) that commits a task as though it occurred
-// at the provided timestamp.
-type CommitFunc func(context.Context, time.Time) error
-
-// ConsistentOperation executes an exteranlly consistent operation in two parts.
-//
-// First, prepare is called. Typically, prepare will acquire resources (files, locks) to ensure the
-// completion of the operation. If prepare returns a non-nil error, ConsistentOperation does
-// not call commit and returns the error. Any required cleanup should be completed before prepare
-// returns.
-//
-// If prepare returns nil, ConsistentOperation obtains a timestamp and passes it to commit. Typically,
-// commit will commit the operation to databases or files using the provided timestamp. If commit
-// returns a non-nill error, ConsistentOperation returns that error. Any required cleanup
-// should be completed before commit returns. If commit returns nil, ConsistentOperation will wait
-// out the uncertainty in the timestamp and then return the timestamp.
-//
-// To ensure consistency, success should not be reported to any external clients until after
-// ConsistentOperation has returned.
-func (c *Client) ConsistentOperation(ctx context.Context, prepare PrepareFunc, commit CommitFunc) (time.Time, error) {
-	if err := prepare(ctx); err != nil {
-		return time.Time{}, err
-	}
-	t := time.Now()
-	var finished = make(chan struct{})
-	go func() {
-		c.WaitUntilAfter(ctx, t)
-		close(finished)
-	}()
-	if err := commit(ctx, t); err != nil {
-		return time.Time{}, err
-	}
-	<-finished
-	return t, nil
 }

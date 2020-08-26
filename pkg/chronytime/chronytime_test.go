@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -131,56 +130,42 @@ func TestResponseParse(t *testing.T) {
 	if rt != wantrts {
 		t.Errorf("Wanted: %s, got %s", wantrts, rt)
 	}
+	rccs := rep.Tracking.CurrentCorrection.value()
+	rccns := rccs * math.Pow(10, 9)
+	rcc := time.Duration(rccns)
+	wantcc := time.Duration(448087 * time.Nanosecond)
+	if rcc != wantcc {
+		t.Errorf("Wanted: %v, got %v", wantcc, rcc)
+	}
 }
 
-func TestConsistenOperation(t *testing.T) {
+func TestEarliest(t *testing.T) {
 	c, err := NewClient()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var errAbort = fmt.Errorf("abort")
-	pSuccess := func(_ context.Context) error { return nil }
-	pFail := func(_ context.Context) error { return errAbort }
-	var cts time.Time
-	cfSuccess := func(_ context.Context, t time.Time) error { cts = t; return nil }
-	cfFail := func(_ context.Context, t time.Time) error { return errAbort }
-
-	cots, err := c.ConsistentOperation(context.Background(), pSuccess, cfSuccess)
+	e, now, corr, u, err := c.fetch()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if cots != cts {
-		t.Errorf("mismatched timestamps: %s and %s", cots, cts)
+	et := now.Add(corr).Add(-u)
+	d := et.Sub(e)
+	if d < 0 {
+		d = -d
 	}
-
-	cots, err = c.ConsistentOperation(context.Background(), pFail, cfSuccess)
-	if err != errAbort {
-		t.Errorf("expected errAbort, got %v", err)
-	}
-	if !cots.Equal(time.Time{}) {
-		t.Errorf("expected time.Time zero value, got %v", cots)
-	}
-	if cts.Equal(time.Time{}) {
-		t.Errorf("cf executed when it shouldn't have been")
-	}
-
-	cots, err = c.ConsistentOperation(context.Background(), pSuccess, cfFail)
-	if err != errAbort {
-		t.Errorf("expected errAbort, got %v", err)
-	}
-	if !cots.Equal(time.Time{}) {
-		t.Errorf("expected time.Time zero value, got %v", cots)
+	if d > 0 {
+		t.Errorf("expected %s, got %s, diff %s", e, et, d)
 	}
 }
 
-func BenchmarkUncertainty(b *testing.B) {
+func BenchmarkFetch(b *testing.B) {
 	c, err := NewClient()
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := c.Uncertainty(); err != nil {
+		if _, _, _, _, err := c.fetch(); err != nil {
 			b.Fatal(err)
 		}
 	}
