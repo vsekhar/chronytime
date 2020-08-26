@@ -240,7 +240,10 @@ func (c *Client) trackingRequest() (*response, error) {
 		return nil, fmt.Errorf("empty read")
 	}
 
-	// TODO: handle partial reads in a loop
+	if n < binary.Size(rep) {
+		// TODO: handle partial reads in a loop
+		return nil, fmt.Errorf("short read: expected %d bytes, got %d bytes", binary.Size(rep), n)
+	}
 
 	if !sameUDPAddr(*addr, *c.addr) {
 		return nil, fmt.Errorf("expected %+v, got %+v", *c.addr, *addr)
