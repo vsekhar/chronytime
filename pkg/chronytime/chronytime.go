@@ -130,13 +130,11 @@ type trackingResponse struct {
 	// EOR int32
 }
 
-func uncertainty(r trackingResponse) time.Duration {
-	// https://chrony.tuxfamily.org/doc/3.5/chronyc.html
-	// TODO: find forum post from Chrony author describing this formula.
-	correction := r.CurrentCorrection.value()
+func uncertaintyFromCorrectedTime(r trackingResponse) time.Duration {
+	// https://listengine.tuxfamily.org/chrony.tuxfamily.org/chrony-users/2017/08/msg00014.html
 	rootDelay := r.RootDelay.value()
 	rootDispersion := r.RootDispersion.value()
-	s := math.Abs(correction) + rootDispersion + (0.5 * rootDelay)
+	s := rootDispersion + (0.5 * rootDelay)
 	ns := s * math.Pow(10, 9)
 	return time.Duration(ns)
 }
@@ -207,11 +205,12 @@ func (c *Client) Get() (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	correction := time.Duration(r.Tracking.CurrentCorrection.value() * math.Pow(10, 9))
+	correctionNs := r.Tracking.CurrentCorrection.value() * math.Pow(10, 9)
+	correction := time.Duration(correctionNs)
 	now := time.Now()
 	return Response{
 		Now:            now.Add(correction),
-		Uncertainty:    uncertainty(r.Tracking),
+		Uncertainty:    uncertaintyFromCorrectedTime(r.Tracking),
 		uncorrectedNow: now,
 		correction:     correction,
 	}, nil

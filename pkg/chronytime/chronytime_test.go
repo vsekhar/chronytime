@@ -114,16 +114,15 @@ var testRep = response{
 
 func TestUncertainty(t *testing.T) {
 	// From testRep (above):
-	//   System time     : 0.000448087 seconds slow of NTP time
 	//   Root delay      : 0.012432915 seconds
 	//   Root dispersion : 0.001648686 seconds
 
 	// correction (a.k.a. "System Time") + rootDispersion + (0.5 * rootDelay)
-	// == 0.000448087 + 0.001648686 + (0.5 * 0.012432915)
+	// == 0.001648686 + (0.5 * 0.012432915)
 	// == 0.008313231 s
-	// == 8313231 ns
-	x := 8313231 * time.Nanosecond
-	if u := uncertainty(testRep.Tracking); u != x {
+	// == 7865143 ns
+	x := 7865143 * time.Nanosecond
+	if u := uncertaintyFromCorrectedTime(testRep.Tracking); u != x {
 		t.Errorf("expected uncertainty %s, got %s", x.String(), u.String())
 	}
 }
