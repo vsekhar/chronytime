@@ -160,6 +160,8 @@ type response struct {
 	Tracking trackingResponse
 }
 
+var responseBinarySize = binary.Size(response{})
+
 // Client is a chronytime client.
 type Client struct {
 	addr *net.UDPAddr
@@ -240,7 +242,7 @@ func (c *Client) trackingRequest() (*response, error) {
 		return nil, fmt.Errorf("empty read")
 	}
 
-	if n < binary.Size(rep) {
+	if n < responseBinarySize {
 		// TODO: handle partial reads in a loop
 		return nil, fmt.Errorf("short read: expected %d bytes, got %d bytes", binary.Size(rep), n)
 	}
