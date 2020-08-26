@@ -137,7 +137,8 @@ func uncertainty(r trackingResponse) time.Duration {
 	rootDelay := r.RootDelay.value()
 	rootDispersion := r.RootDispersion.value()
 	s := math.Abs(correction) + rootDispersion + (0.5 * rootDelay)
-	return time.Duration(s) * time.Second
+	ns := s * math.Pow(10, 9)
+	return time.Duration(ns)
 }
 
 type response struct {
@@ -175,10 +176,6 @@ func NewClient() (*Client, error) {
 	}
 	c := &Client{addr: s, conn: conn}
 
-	if err := c.waitSync(); err != nil {
-		return nil, err
-	}
-
 	return c, nil
 }
 
@@ -191,30 +188,13 @@ func sameUDPAddr(a1, a2 net.UDPAddr) bool {
 	return false
 }
 
-func (c *Client) waitSync() error {
-	attempts := 0
-	maxAttempts := 3
-	for {
-		attempts++
-		if attempts > maxAttempts {
-			return fmt.Errorf("max attempts exceeded waiting for sync")
-		}
-		r, err := c.trackingRequest()
-		if err != nil {
-			return err
-		}
-		if r.Tracking.Addr.Family == ipAddrFamilyUnspec {
-			continue
-		}
-		if r.Tracking.RefID == 0 || r.Tracking.RefID == 0x7f7f0101 /* LOCAL refid */ {
-			continue
-		}
-		if uncertainty(r.Tracking) > (20 * time.Millisecond) {
-			continue
-		}
-		break
+// Uncertainty returns the current time uncertainty, or an error.
+func (c *Client) Uncertainty() (time.Duration, error) {
+	r, err := c.trackingRequest()
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	return uncertainty(r.Tracking), nil
 }
 
 func (c *Client) trackingRequest() (*response, error) {
