@@ -207,8 +207,8 @@ func TestWaitUntilAfter(t *testing.T) {
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Nanosecond)
 	defer cancel()
 	err = c.WaitUntilAfter(ctx, target)
-	if err != context.Canceled {
-		t.Errorf("expected context cancellation error, got %s", err)
+	if err != context.DeadlineExceeded {
+		t.Errorf("expected context deadline exceeded error, got %s", err)
 	}
 }
 

@@ -286,7 +286,7 @@ func (c *Client) WaitUntilAfter(ctx context.Context, t time.Time) error {
 		case <-time.After(t.Sub(r.Earliest())):
 			continue
 		case <-ctx.Done():
-			return context.Canceled
+			return ctx.Err()
 		}
 	}
 	return nil
